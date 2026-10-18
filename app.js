@@ -554,6 +554,22 @@ function renderMemos() {
 
     actions.appendChild(editButton);
 
+
+    const copyButton = makeElement(
+      "button",
+      "Notion転記用にコピー",
+      "memo-copy-button"
+    );
+
+    copyButton.type = "button";
+
+    copyButton.addEventListener("click", () => {
+      copyMemoToNotion(memo.id);
+    });
+
+    actions.appendChild(copyButton);
+
+
     const deleteButton = makeElement(
       "button",
       "削除",
@@ -573,6 +589,91 @@ function renderMemos() {
 
   updateCounts();
 }
+
+
+/**
+ * Notionに貼り付ける文章を作成
+ */
+function buildNotionText(memo) {
+  const source = memo.source || {};
+
+  const lines = [
+    `# ${memo.title || "無題のメモ"}`,
+    "",
+    `ジャンル：${memo.category || "未分類"}`,
+    `記録日時：${formatDate(memo.createdAt || memo.updatedAt)}`,
+    ""
+  ];
+
+  if (source.bookTitle || source.author || source.page) {
+    lines.push("## 読書ソース");
+
+    if (source.bookTitle) {
+      lines.push(`本のタイトル：${source.bookTitle}`);
+    }
+
+    if (source.author) {
+      lines.push(`著者名：${source.author}`);
+    }
+
+    if (source.page) {
+      lines.push(`ページ番号：${source.page}`);
+    }
+
+    lines.push("");
+  }
+
+  lines.push("## メモ本文", "", memo.original || "");
+
+  return lines.join("\n");
+}
+
+/**
+ * Notion転記用の文章をコピー
+ */
+async function copyMemoToNotion(id) {
+  const memo = memos.find((item) => item.id === id);
+
+  if (!memo) {
+    alert("コピーするメモが見つかりません。");
+    return;
+  }
+
+  const text = buildNotionText(memo);
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("Notion転記用の文章をコピーしました！\nNotionで貼り付けてください。");
+  } catch (error) {
+    console.error("コピーに失敗しました。", error);
+
+    // コピー機能が使えない環境向けの代替処理
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    let copied = false;
+
+    try {
+      copied = document.execCommand("copy");
+    } catch (fallbackError) {
+      console.error("代替コピーにも失敗しました。", fallbackError);
+    }
+
+    textarea.remove();
+
+    if (copied) {
+      alert("Notion転記用の文章をコピーしました！\nNotionで貼り付けてください。");
+    } else {
+      alert("自動コピーできませんでした。HTTPSの公開サイトから再度お試しください。");
+    }
+  }
+}
+
 
 // ----------------------------------------
 // Notion転記状況の切り替え

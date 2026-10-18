@@ -802,3 +802,29 @@ select:focus {
   }
 }
 
+
+/* Notion転記用コピー */
+.memo-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border: 1px solid #b8cbbd;
+  border-radius: 10px;
+  background: #edf5ef;
+  color: #28543a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.memo-copy-button:hover {
+  background: #dcecdf;
+}
+
+.memo-copy-button:active {
+  transform: scale(0.98);
+}
+
+
