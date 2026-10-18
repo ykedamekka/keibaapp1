@@ -70,31 +70,7 @@
           <option value="その他">その他</option>
         </select>
 
-<section id="genre-management" class="panel">
-  <h2>ジャンル管理</h2>
 
-  <form id="genre-form">
-    <label for="new-genre-name">新しいジャンル名</label>
-
-    <div class="genre-add-row">
-      <input
-        type="text"
-        id="new-genre-name"
-        placeholder="例：調教分析"
-        maxlength="40"
-        required
-      >
-      <button type="submit">追加</button>
-    </div>
-  </form>
-
-  <p class="help-text">
-    不要なジャンルは削除できます。
-    削除しても過去のメモに記録されたジャンル名は残ります。
-  </p>
-
-  <div id="genre-list"></div>
-</section>
 
 <div id="source-fields" class="source-fields" hidden>
   <h3>読書ソース</h3>
@@ -138,6 +114,32 @@
         </button>
       </form>
     </section>
+
+<section id="genre-management" class="panel">
+  <h2>ジャンル管理</h2>
+
+  <form id="genre-form">
+    <label for="new-genre-name">新しいジャンル名</label>
+
+    <div class="genre-add-row">
+      <input
+        type="text"
+        id="new-genre-name"
+        placeholder="例：調教分析"
+        maxlength="40"
+        required
+      >
+      <button type="submit">追加</button>
+    </div>
+  </form>
+
+  <p class="help-text">
+    不要なジャンルは削除できます。
+    削除しても過去のメモに記録されたジャンル名は残ります。
+  </p>
+
+  <div id="genre-list"></div>
+</section>
 
     <section class="panel" id="memo-list-section">
       <div class="section-heading">
