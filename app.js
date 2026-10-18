@@ -599,6 +599,52 @@ function buildNotionText(memo) {
   return memo.original || "";
 }
 
+/**
+ * Notion転記用の文章をコピー
+ */
+async function copyMemoToNotion(id) {
+  const memo = memos.find((item) => item.id === id);
+
+  if (!memo) {
+    alert("コピーするメモが見つかりません。");
+    return;
+  }
+
+  const text = buildNotionText(memo);
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("Notion転記用の文章をコピーしました！\nNotionで貼り付けてください。");
+  } catch (error) {
+    console.error("コピーに失敗しました。", error);
+
+    // コピー機能が使えない環境向けの代替処理
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    let copied = false;
+
+    try {
+      copied = document.execCommand("copy");
+    } catch (fallbackError) {
+      console.error("代替コピーにも失敗しました。", fallbackError);
+    }
+
+    textarea.remove();
+
+    if (copied) {
+      alert("Notion転記用の文章をコピーしました！\nNotionで貼り付けてください。");
+    } else {
+      alert("自動コピーできませんでした。HTTPSの公開サイトから再度お試しください。");
+    }
+  }
+}
+
 
 // ----------------------------------------
 // Notion転記状況の切り替え
