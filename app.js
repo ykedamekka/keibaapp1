@@ -104,7 +104,7 @@ let memos = loadMemos();
 let genres = loadGenres();
 
 // ----------------------------------------
-// 保存
+// データの保存
 // ----------------------------------------
 
 function saveMemos() {
@@ -166,7 +166,7 @@ function formatDate(value) {
 }
 
 // ----------------------------------------
-// ジャンル選択欄を更新
+// ジャンル選択欄の更新
 // ----------------------------------------
 
 function getHistoricalGenres() {
@@ -184,7 +184,7 @@ function getHistoricalGenres() {
 function populateCategorySelects() {
   const historicalGenres = getHistoricalGenres();
 
-  // 削除済みのジャンルも、過去のメモの表示・編集用に残す
+  // 削除済みジャンルも過去のメモ用に残す
   const allGenres = [...new Set([
     ...genres,
     ...historicalGenres
@@ -257,8 +257,6 @@ function renderGenres() {
     );
 
     deleteButton.type = "button";
-
-    // 「その他」は標準ジャンルとして残す
     deleteButton.disabled = genre === "その他";
 
     deleteButton.addEventListener("click", () => {
@@ -271,7 +269,11 @@ function renderGenres() {
 
   if (genres.length === 0) {
     genreList.appendChild(
-      makeElement("p", "ジャンルがありません。追加してください。", "empty-message")
+      makeElement(
+        "p",
+        "ジャンルがありません。追加してください。",
+        "empty-message"
+      )
     );
   }
 }
@@ -383,7 +385,64 @@ function fillSourceFields(source) {
 }
 
 // ----------------------------------------
-// メモ一覧
+// Notion転記用のコピー
+// コピーするのはメモ本文のみ
+// ----------------------------------------
+
+async function copyMemoToNotion(id) {
+  const memo = memos.find((item) => item.id === id);
+
+  if (!memo) {
+    alert("コピーするメモが見つかりません。");
+    return;
+  }
+
+  // タイトル・ジャンル・日時・読書ソースは含めない
+  const text = memo.original || "";
+
+  try {
+    await navigator.clipboard.writeText(text);
+
+    alert(
+      "メモ本文をコピーしました！\nNotionで貼り付けてください。"
+    );
+  } catch (error) {
+    console.error("通常のコピーに失敗しました。", error);
+
+    // クリップボードAPIが使えない場合の代替処理
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.setAttribute("readonly", "");
+
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    let copied = false;
+
+    try {
+      copied = document.execCommand("copy");
+    } catch (fallbackError) {
+      console.error("代替コピーにも失敗しました。", fallbackError);
+    }
+
+    textarea.remove();
+
+    if (copied) {
+      alert(
+        "メモ本文をコピーしました！\nNotionで貼り付けてください。"
+      );
+    } else {
+      alert(
+        "自動コピーできませんでした。\nHTTPSの公開サイトから再度お試しください。"
+      );
+    }
+  }
+}
+
+// ----------------------------------------
+// メモ一覧の表示
 // ----------------------------------------
 
 function renderMemos() {
@@ -460,17 +519,13 @@ function renderMemos() {
     card.appendChild(header);
 
     card.appendChild(
-      makeElement("h3", memo.title, "memo-card-title")
+      makeElement("h3", memo.title || "無題のメモ", "memo-card-title")
     );
 
     // 読書ソースを表示
     const source = memo.source || {};
 
-    if (
-      source.bookTitle ||
-      source.author ||
-      source.page
-    ) {
+    if (source.bookTitle || source.author || source.page) {
       const sourceBox = document.createElement("div");
       sourceBox.className = "memo-card-source";
 
@@ -537,7 +592,7 @@ function renderMemos() {
     notionRow.appendChild(notionButton);
     card.appendChild(notionRow);
 
-    // 編集・削除ボタン
+    // 編集・コピー・削除ボタン
     const actions = document.createElement("div");
     actions.className = "memo-card-actions";
 
@@ -548,13 +603,14 @@ function renderMemos() {
     );
 
     editButton.type = "button";
+
     editButton.addEventListener("click", () => {
       startEditing(memo.id);
     });
 
     actions.appendChild(editButton);
 
-
+    // Notion転記用にコピー：メモ本文のみ
     const copyButton = makeElement(
       "button",
       "Notion転記用にコピー",
@@ -569,7 +625,6 @@ function renderMemos() {
 
     actions.appendChild(copyButton);
 
-
     const deleteButton = makeElement(
       "button",
       "削除",
@@ -577,6 +632,7 @@ function renderMemos() {
     );
 
     deleteButton.type = "button";
+
     deleteButton.addEventListener("click", () => {
       deleteMemo(memo.id);
     });
@@ -590,62 +646,6 @@ function renderMemos() {
   updateCounts();
 }
 
-
-/**
- * Notionに貼り付ける文章を作成
- */
-
-function buildNotionText(memo) {
-  return memo.original || "";
-}
-
-/**
- * Notion転記用の文章をコピー
- */
-async function copyMemoToNotion(id) {
-  const memo = memos.find((item) => item.id === id);
-
-  if (!memo) {
-    alert("コピーするメモが見つかりません。");
-    return;
-  }
-
-  const text = buildNotionText(memo);
-
-  try {
-    await navigator.clipboard.writeText(text);
-    alert("Notion転記用の文章をコピーしました！\nNotionで貼り付けてください。");
-  } catch (error) {
-    console.error("コピーに失敗しました。", error);
-
-    // コピー機能が使えない環境向けの代替処理
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-
-    document.body.appendChild(textarea);
-    textarea.select();
-
-    let copied = false;
-
-    try {
-      copied = document.execCommand("copy");
-    } catch (fallbackError) {
-      console.error("代替コピーにも失敗しました。", fallbackError);
-    }
-
-    textarea.remove();
-
-    if (copied) {
-      alert("Notion転記用の文章をコピーしました！\nNotionで貼り付けてください。");
-    } else {
-      alert("自動コピーできませんでした。HTTPSの公開サイトから再度お試しください。");
-    }
-  }
-}
-
-
 // ----------------------------------------
 // Notion転記状況の切り替え
 // ----------------------------------------
@@ -656,7 +656,6 @@ function toggleNotionStatus(id) {
   if (index === -1) return;
 
   const previousMemos = memos;
-  const memo = memos[index];
 
   memos = memos.map((item) => {
     if (item.id !== id) return item;
@@ -697,7 +696,7 @@ function updateCounts() {
 }
 
 // ----------------------------------------
-// 入力フォーム
+// メモ入力フォーム
 // ----------------------------------------
 
 function resetEditor() {
@@ -752,11 +751,11 @@ function startEditing(id) {
   }
 
   if (memoTitle) {
-    memoTitle.value = memo.title;
+    memoTitle.value = memo.title || "";
   }
 
   if (memoOriginal) {
-    memoOriginal.value = memo.original;
+    memoOriginal.value = memo.original || "";
   }
 
   fillSourceFields(memo.source || null);
@@ -781,7 +780,7 @@ function deleteMemo(id) {
 
   if (!memo) return;
 
-  if (!confirm(`「${memo.title}」を削除しますか？`)) {
+  if (!confirm(`「${memo.title || "無題のメモ"}」を削除しますか？`)) {
     return;
   }
 
@@ -816,15 +815,19 @@ if (memoForm) {
       ? memoTitle.value.trim()
       : "";
 
+    const finalTitle = title || "無題のメモ";
+
     const original = memoOriginal
       ? memoOriginal.value
       : "";
 
-const finalTitle = title || "無題のメモ";
-
     if (!original.trim()) {
       alert("メモの内容を入力してください。");
-      if (memoOriginal) memoOriginal.focus();
+
+      if (memoOriginal) {
+        memoOriginal.focus();
+      }
+
       return;
     }
 
@@ -842,7 +845,7 @@ const finalTitle = title || "無題のメモ";
         return {
           ...memo,
           category,
-          title,
+          title: finalTitle,
           original,
           source,
           updatedAt: now
@@ -852,7 +855,7 @@ const finalTitle = title || "無題のメモ";
       memos.unshift({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         category,
-        title,
+        title: finalTitle,
         original,
         source,
         createdAt: now,
