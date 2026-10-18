@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f8f5">
+  <meta name="description" content="競馬の気づき、血統、騎手分析などを記録する自分専用のノート">
+  <title>競馬メモ</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="#" id="home-link">
+      <span class="brand-icon">♞</span>
+      <span>競馬メモ</span>
+    </a>
+    <span class="header-label">MY RACING NOTE</span>
+  </header>
+
+  <main class="container">
+    <section class="welcome">
+      <p class="eyebrow">MY KNOWLEDGE BASE</p>
+      <h1>競馬の気づきを、<br>自分だけの知識に。</h1>
+      <p class="welcome-text">
+        血統、騎手、馬体、レース回顧。<br>
+        気づいたことを少しずつ記録していきましょう。
+      </p>
+      <button class="primary-button" id="new-memo-button" type="button">
+        ＋ メモを追加する
+      </button>
+    </section>
+
+    <section class="stats">
+      <div class="stat-card">
+        <span class="stat-label">保存したメモ</span>
+        <strong id="memo-count">0</strong>
+        <span class="stat-unit">件</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">AI整理の確認待ち</span>
+        <strong id="pending-count">0</strong>
+        <span class="stat-unit">件</span>
+      </div>
+    </section>
+
+    <section class="panel" id="editor-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">NEW NOTE</p>
+          <h2 id="editor-title">新しいメモ</h2>
+        </div>
+        <button class="text-button" id="cancel-edit-button" type="button">
+          閉じる
+        </button>
+      </div>
+
+      <form id="memo-form">
+        <label for="memo-category">ジャンル</label>
+        <select id="memo-category" required>
+          <option value="騎手分析">騎手分析</option>
+          <option value="種牡馬・血統">種牡馬・血統</option>
+          <option value="馬体・走法">馬体・走法</option>
+          <option value="レース回顧">レース回顧</option>
+          <option value="予想・仮説">予想・仮説</option>
+          <option value="読書記録">読書記録</option>
+          <option value="競馬の知識">競馬の知識</option>
+          <option value="競馬産業・競馬史">競馬産業・競馬史</option>
+          <option value="その他">その他</option>
+        </select>
+
+        <label for="memo-title">タイトル（任意）</label>
+        <input id="memo-title" type="text" maxlength="120"
+          placeholder="例：横山和生騎手のダート1200m">
+
+        <label for="memo-original">メモの原文</label>
+        <textarea id="memo-original" rows="7" required
+          placeholder="気づいたこと、疑問、仮説などを自由に入力してください。&#10;&#10;入力した原文はそのまま保存します。"></textarea>
+
+        <p class="form-note">
+          原文を保持して保存します。AIによる整理・分析は次の段階で追加します。
+        </p>
+
+        <button class="primary-button full-width" type="submit">
+          メモを保存する
+        </button>
+      </form>
+    </section>
+
+    <section class="panel" id="memo-list-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">YOUR NOTES</p>
+          <h2>メモ一覧</h2>
+        </div>
+      </div>
+
+      <label class="search-label" for="memo-search">メモを検索</label>
+      <input id="memo-search" type="search"
+        placeholder="タイトル・原文・ジャンルで検索">
+
+      <div class="filter-row">
+        <label for="category-filter">ジャンルで絞り込む</label>
+        <select id="category-filter">
+          <option value="すべて">すべて</option>
+          <option value="騎手分析">騎手分析</option>
+          <option value="種牡馬・血統">種牡馬・血統</option>
+          <option value="馬体・走法">馬体・走法</option>
+          <option value="レース回顧">レース回顧</option>
+          <option value="予想・仮説">予想・仮説</option>
+          <option value="読書記録">読書記録</option>
+          <option value="競馬の知識">競馬の知識</option>
+          <option value="競馬産業・競馬史">競馬産業・競馬史</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+
+      <div id="memo-list" class="memo-list">
+        <div class="empty-state">
+          <span class="empty-icon">✎</span>
+          <p>まだメモがありません。</p>
+          <p>最初の気づきを記録してみましょう。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel analysis-panel">
+      <p class="eyebrow">AI ANALYSIS</p>
+      <h2>メモから、新しい発見へ。</h2>
+      <p>
+        複数のメモを横断した考察や、仮説の整理を行う分析機能を、
+        次の段階で追加します。
+      </p>
+      <span class="coming-soon">AI分析機能は準備中</span>
+    </section>
+
+    <footer class="app-footer">
+      <p>競馬メモ — 自分だけの競馬研究ノート</p>
+    </footer>
+  </main>
+
+  <nav class="bottom-nav" aria-label="メインメニュー">
+    <button type="button" class="nav-item active" id="nav-home">
+      <span>⌂</span>
+      <small>ホーム</small>
+    </button>
+    <button type="button" class="nav-item" id="nav-notes">
+      <span>▤</span>
+      <small>メモ一覧</small>
+    </button>
+    <button type="button" class="nav-item" id="nav-add">
+      <span>＋</span>
+      <small>記録する</small>
+    </button>
+  </nav>
+</body>
+</html>
