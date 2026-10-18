@@ -594,38 +594,9 @@ function renderMemos() {
 /**
  * Notionに貼り付ける文章を作成
  */
+
 function buildNotionText(memo) {
-  const source = memo.source || {};
-
-  const lines = [
-    `# ${memo.title || "無題のメモ"}`,
-    "",
-    `ジャンル：${memo.category || "未分類"}`,
-    `記録日時：${formatDate(memo.createdAt || memo.updatedAt)}`,
-    ""
-  ];
-
-  if (source.bookTitle || source.author || source.page) {
-    lines.push("## 読書ソース");
-
-    if (source.bookTitle) {
-      lines.push(`本のタイトル：${source.bookTitle}`);
-    }
-
-    if (source.author) {
-      lines.push(`著者名：${source.author}`);
-    }
-
-    if (source.page) {
-      lines.push(`ページ番号：${source.page}`);
-    }
-
-    lines.push("");
-  }
-
-  lines.push("## メモ本文", "", memo.original || "");
-
-  return lines.join("\n");
+  return memo.original || "";
 }
 
 /**
