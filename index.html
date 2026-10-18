@@ -70,6 +70,58 @@
           <option value="その他">その他</option>
         </select>
 
+<section id="genre-management" class="panel">
+  <h2>ジャンル管理</h2>
+
+  <form id="genre-form">
+    <label for="new-genre-name">新しいジャンル名</label>
+
+    <div class="genre-add-row">
+      <input
+        type="text"
+        id="new-genre-name"
+        placeholder="例：調教分析"
+        maxlength="40"
+        required
+      >
+
+      <button type="submit">追加</button>
+    </div>
+  </form>
+
+  <p class="help-text">
+    不要なジャンルは削除できます。
+    削除しても過去のメモに記録されたジャンル名は残ります。
+  </p>
+
+  <div id="genre-list"></div>
+</section>
+
+<div id="source-fields" class="source-fields" hidden>
+  <h3>読書ソース</h3>
+
+  <label for="source-book-title">本のタイトル</label>
+  <input
+    type="text"
+    id="source-book-title"
+    placeholder="本のタイトル"
+  >
+
+  <label for="source-author">著者名</label>
+  <input
+    type="text"
+    id="source-author"
+    placeholder="著者名"
+  >
+
+  <label for="source-page">ページ番号</label>
+  <input
+    type="text"
+    id="source-page"
+    placeholder="例：P.35〜42"
+  >
+</div>
+
         <label for="memo-title">タイトル（任意）</label>
         <input id="memo-title" type="text" maxlength="120"
           placeholder="例：横山和生騎手のダート1200m">

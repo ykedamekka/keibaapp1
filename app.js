@@ -3,67 +3,140 @@
 
 // ========================================
 // 競馬メモアプリ
+// 既存データを引き継ぐバージョン
 // ========================================
 
-// HTMLの要素を取得
-const memoForm = document.getElementById("memo-form");
-const memoCategory = document.getElementById("memo-category");
-const memoTitle = document.getElementById("memo-title");
-const memoOriginal = document.getElementById("memo-original");
-const memoSearch = document.getElementById("memo-search");
-const categoryFilter = document.getElementById("category-filter");
-const memoList = document.getElementById("memo-list");
-
-const memoCount = document.getElementById("memo-count");
-const pendingCount = document.getElementById("pending-count");
-
-const editorSection = document.getElementById("editor-section");
-const editorTitle = document.getElementById("editor-title");
-const newMemoButton = document.getElementById("new-memo-button");
-const cancelEditButton = document.getElementById("cancel-edit-button");
-
 const STORAGE_KEY = "keiba-memo-app-memos";
+const GENRE_STORAGE_KEY = "keiba-memo-app-genres";
 
-// メモのデータを読み込む
-function loadMemos() {
+const DEFAULT_GENRES = [
+  "騎手分析",
+  "種牡馬・血統",
+  "馬体・走法",
+  "レース回顧",
+  "予想・仮説",
+  "読書記録",
+  "競馬の知識",
+  "競馬産業・競馬史",
+  "その他"
+];
+
+const $ = (id) => document.getElementById(id);
+
+const memoForm = $("memo-form");
+const memoCategory = $("memo-category");
+const memoTitle = $("memo-title");
+const memoOriginal = $("memo-original");
+const memoSearch = $("memo-search");
+const categoryFilter = $("category-filter");
+const memoList = $("memo-list");
+
+const memoCount = $("memo-count");
+const pendingCount = $("pending-count");
+
+const editorSection = $("editor-section");
+const editorTitle = $("editor-title");
+const newMemoButton = $("new-memo-button");
+const cancelEditButton = $("cancel-edit-button");
+
+const sourceFields = $("source-fields");
+const sourceBookTitle = $("source-book-title");
+const sourceAuthor = $("source-author");
+const sourcePage = $("source-page");
+
+const genreForm = $("genre-form");
+const newGenreName = $("new-genre-name");
+const genreList = $("genre-list");
+
+let editingMemoId = null;
+
+// ----------------------------------------
+// 保存データの読み込み
+// ----------------------------------------
+
+function readJSON(key, fallback) {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const parsed = saved ? JSON.parse(saved) : [];
+    const raw = localStorage.getItem(key);
 
-    if (!Array.isArray(parsed)) {
-      return [];
+    if (raw === null) {
+      return fallback;
     }
 
-    return parsed.filter(
-      (memo) =>
-        memo &&
-        typeof memo.id === "string" &&
-        typeof memo.title === "string" &&
-        typeof memo.original === "string"
-    );
+    return JSON.parse(raw);
   } catch (error) {
-    console.error("メモの読み込みに失敗しました。", error);
-    return [];
+    console.error(`${key} の読み込みに失敗しました。`, error);
+    return fallback;
   }
 }
 
-let memos = loadMemos();
-let editingMemoId = null;
+function loadMemos() {
+  const data = readJSON(STORAGE_KEY, []);
 
-// メモを保存する
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.filter((memo) =>
+    memo &&
+    typeof memo.id === "string" &&
+    typeof memo.title === "string" &&
+    typeof memo.original === "string"
+  );
+}
+
+function loadGenres() {
+  const data = readJSON(GENRE_STORAGE_KEY, null);
+
+  if (!Array.isArray(data)) {
+    return [...DEFAULT_GENRES];
+  }
+
+  return [...new Set(
+    data.filter(
+      (genre) =>
+        typeof genre === "string" &&
+        genre.trim() !== ""
+    ).map((genre) => genre.trim())
+  )];
+}
+
+let memos = loadMemos();
+let genres = loadGenres();
+
+// ----------------------------------------
+// 保存
+// ----------------------------------------
+
 function saveMemos() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(memos));
     return true;
   } catch (error) {
     console.error("メモの保存に失敗しました。", error);
-    alert("メモを保存できませんでした。ブラウザの保存容量などをご確認ください。");
+    alert("メモを保存できませんでした。ブラウザの保存容量をご確認ください。");
     return false;
   }
 }
 
-// HTMLに安全に文字を表示する
-function createTextElement(tag, text, className) {
+function saveGenres() {
+  try {
+    localStorage.setItem(
+      GENRE_STORAGE_KEY,
+      JSON.stringify(genres)
+    );
+    return true;
+  } catch (error) {
+    console.error("ジャンルの保存に失敗しました。", error);
+    alert("ジャンルを保存できませんでした。");
+    return false;
+  }
+}
+
+// ----------------------------------------
+// HTML要素を安全に作る
+// ----------------------------------------
+
+function makeElement(tag, text, className) {
   const element = document.createElement(tag);
   element.textContent = text;
 
@@ -74,11 +147,10 @@ function createTextElement(tag, text, className) {
   return element;
 }
 
-// 日付を表示用に整える
-function formatDate(dateString) {
-  if (!dateString) return "";
+function formatDate(value) {
+  if (!value) return "";
 
-  const date = new Date(dateString);
+  const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
     return "";
@@ -93,12 +165,234 @@ function formatDate(dateString) {
   });
 }
 
-// メモ一覧を表示する
+// ----------------------------------------
+// ジャンル選択欄を更新
+// ----------------------------------------
+
+function getHistoricalGenres() {
+  return [...new Set(
+    memos
+      .map((memo) => memo.category)
+      .filter(
+        (category) =>
+          typeof category === "string" &&
+          category.trim() !== ""
+      )
+  )];
+}
+
+function populateCategorySelects() {
+  const historicalGenres = getHistoricalGenres();
+
+  // 削除済みのジャンルも、過去のメモの表示・編集用に残す
+  const allGenres = [...new Set([
+    ...genres,
+    ...historicalGenres
+  ])];
+
+  if (memoCategory) {
+    const currentValue = editingMemoId
+      ? memos.find((memo) => memo.id === editingMemoId)?.category
+      : memoCategory.value;
+
+    memoCategory.replaceChildren();
+
+    allGenres.forEach((genre) => {
+      const option = document.createElement("option");
+      option.value = genre;
+      option.textContent = genre;
+      memoCategory.appendChild(option);
+    });
+
+    if (currentValue && allGenres.includes(currentValue)) {
+      memoCategory.value = currentValue;
+    }
+  }
+
+  if (categoryFilter) {
+    const currentFilter = categoryFilter.value || "all";
+
+    categoryFilter.replaceChildren();
+
+    const allOption = document.createElement("option");
+    allOption.value = "all";
+    allOption.textContent = "すべて";
+    categoryFilter.appendChild(allOption);
+
+    allGenres.forEach((genre) => {
+      const option = document.createElement("option");
+      option.value = genre;
+      option.textContent = genre;
+      categoryFilter.appendChild(option);
+    });
+
+    categoryFilter.value =
+      currentFilter === "all" || allGenres.includes(currentFilter)
+        ? currentFilter
+        : "all";
+  }
+}
+
+// ----------------------------------------
+// ジャンルの追加・削除
+// ----------------------------------------
+
+function renderGenres() {
+  if (!genreList) return;
+
+  genreList.replaceChildren();
+
+  genres.forEach((genre) => {
+    const row = document.createElement("div");
+    row.className = "genre-item";
+
+    row.appendChild(
+      makeElement("span", genre, "genre-item-name")
+    );
+
+    const deleteButton = makeElement(
+      "button",
+      "削除",
+      "genre-delete-button"
+    );
+
+    deleteButton.type = "button";
+
+    // 「その他」は標準ジャンルとして残す
+    deleteButton.disabled = genre === "その他";
+
+    deleteButton.addEventListener("click", () => {
+      deleteGenre(genre);
+    });
+
+    row.appendChild(deleteButton);
+    genreList.appendChild(row);
+  });
+
+  if (genres.length === 0) {
+    genreList.appendChild(
+      makeElement("p", "ジャンルがありません。追加してください。", "empty-message")
+    );
+  }
+}
+
+function addGenre(name) {
+  const genre = name.trim();
+
+  if (!genre) {
+    alert("ジャンル名を入力してください。");
+    return;
+  }
+
+  if (genres.includes(genre)) {
+    alert("同じ名前のジャンルがすでにあります。");
+    return;
+  }
+
+  const previousGenres = [...genres];
+  genres.push(genre);
+
+  if (!saveGenres()) {
+    genres = previousGenres;
+    return;
+  }
+
+  populateCategorySelects();
+  renderGenres();
+
+  if (newGenreName) {
+    newGenreName.value = "";
+  }
+}
+
+function deleteGenre(genre) {
+  if (genre === "その他") {
+    alert("「その他」は削除できません。");
+    return;
+  }
+
+  const usedCount = memos.filter(
+    (memo) => memo.category === genre
+  ).length;
+
+  const message = usedCount > 0
+    ? `「${genre}」をジャンル一覧から削除しますか？\n過去の${usedCount}件のメモのジャンル名はそのまま残ります。`
+    : `「${genre}」を削除しますか？`;
+
+  if (!confirm(message)) return;
+
+  const previousGenres = [...genres];
+  genres = genres.filter((item) => item !== genre);
+
+  if (!saveGenres()) {
+    genres = previousGenres;
+    return;
+  }
+
+  populateCategorySelects();
+  renderGenres();
+  renderMemos();
+}
+
+// ----------------------------------------
+// 読書記録のソース欄
+// ----------------------------------------
+
+function updateSourceFields() {
+  if (!sourceFields || !memoCategory) return;
+
+  const isReading = memoCategory.value === "読書記録";
+
+  sourceFields.hidden = !isReading;
+
+  [sourceBookTitle, sourceAuthor, sourcePage].forEach((input) => {
+    if (input) {
+      input.disabled = !isReading;
+    }
+  });
+}
+
+function getSourceFromForm() {
+  return {
+    bookTitle: sourceBookTitle
+      ? sourceBookTitle.value.trim()
+      : "",
+    author: sourceAuthor
+      ? sourceAuthor.value.trim()
+      : "",
+    page: sourcePage
+      ? sourcePage.value.trim()
+      : ""
+  };
+}
+
+function fillSourceFields(source) {
+  if (sourceBookTitle) {
+    sourceBookTitle.value = source?.bookTitle || "";
+  }
+
+  if (sourceAuthor) {
+    sourceAuthor.value = source?.author || "";
+  }
+
+  if (sourcePage) {
+    sourcePage.value = source?.page || "";
+  }
+
+  updateSourceFields();
+}
+
+// ----------------------------------------
+// メモ一覧
+// ----------------------------------------
+
 function renderMemos() {
   if (!memoList) return;
 
+  populateCategorySelects();
+
   const keyword = memoSearch
-    ? memoSearch.value.trim().toLowerCase()
+    ? memoSearch.value.trim().toLocaleLowerCase()
     : "";
 
   const selectedCategory = categoryFilter
@@ -106,18 +400,21 @@ function renderMemos() {
     : "all";
 
   const filteredMemos = memos.filter((memo) => {
+    const source = memo.source || {};
+
     const searchableText = [
       memo.title,
       memo.category,
-      memo.original
-    ].join(" ").toLowerCase();
+      memo.original,
+      source.bookTitle,
+      source.author,
+      source.page
+    ].filter(Boolean).join(" ").toLocaleLowerCase();
 
     const matchesKeyword = searchableText.includes(keyword);
 
     const matchesCategory =
-      !selectedCategory ||
       selectedCategory === "all" ||
-      selectedCategory === "すべて" ||
       memo.category === selectedCategory;
 
     return matchesKeyword && matchesCategory;
@@ -127,7 +424,7 @@ function renderMemos() {
 
   if (filteredMemos.length === 0) {
     memoList.appendChild(
-      createTextElement(
+      makeElement(
         "p",
         memos.length === 0
           ? "まだメモがありません。最初のメモを追加しましょう。"
@@ -145,20 +442,64 @@ function renderMemos() {
     header.className = "memo-card-header";
 
     header.appendChild(
-      createTextElement("span", memo.category || "未分類", "memo-category-label")
+      makeElement(
+        "span",
+        memo.category || "未分類",
+        "memo-category-label"
+      )
     );
 
     header.appendChild(
-      createTextElement("time", formatDate(memo.updatedAt || memo.createdAt), "memo-date")
+      makeElement(
+        "time",
+        formatDate(memo.updatedAt || memo.createdAt),
+        "memo-date"
+      )
     );
 
     card.appendChild(header);
 
     card.appendChild(
-      createTextElement("h3", memo.title, "memo-card-title")
+      makeElement("h3", memo.title, "memo-card-title")
     );
 
-    const original = createTextElement(
+    // 読書ソースを表示
+    const source = memo.source || {};
+
+    if (
+      source.bookTitle ||
+      source.author ||
+      source.page
+    ) {
+      const sourceBox = document.createElement("div");
+      sourceBox.className = "memo-card-source";
+
+      sourceBox.appendChild(
+        makeElement("strong", "読書ソース")
+      );
+
+      if (source.bookTitle) {
+        sourceBox.appendChild(
+          makeElement("p", `本のタイトル：${source.bookTitle}`)
+        );
+      }
+
+      if (source.author) {
+        sourceBox.appendChild(
+          makeElement("p", `著者名：${source.author}`)
+        );
+      }
+
+      if (source.page) {
+        sourceBox.appendChild(
+          makeElement("p", `ページ番号：${source.page}`)
+        );
+      }
+
+      card.appendChild(sourceBox);
+    }
+
+    const original = makeElement(
       "p",
       memo.original,
       "memo-card-original"
@@ -167,10 +508,40 @@ function renderMemos() {
     original.style.whiteSpace = "pre-wrap";
     card.appendChild(original);
 
+    // Notion転記状況
+    const notionRow = document.createElement("div");
+    notionRow.className = "notion-status-row";
+
+    const isNotionDone = memo.notionCopied === true;
+
+    const statusLabel = makeElement(
+      "span",
+      isNotionDone ? "Notion転記済み" : "Notion未転記",
+      `notion-status-label ${isNotionDone ? "is-done" : "is-pending"}`
+    );
+
+    notionRow.appendChild(statusLabel);
+
+    const notionButton = makeElement(
+      "button",
+      isNotionDone ? "未転記に戻す" : "転記済みにする",
+      `notion-status-button ${isNotionDone ? "is-done" : "is-pending"}`
+    );
+
+    notionButton.type = "button";
+
+    notionButton.addEventListener("click", () => {
+      toggleNotionStatus(memo.id);
+    });
+
+    notionRow.appendChild(notionButton);
+    card.appendChild(notionRow);
+
+    // 編集・削除ボタン
     const actions = document.createElement("div");
     actions.className = "memo-card-actions";
 
-    const editButton = createTextElement(
+    const editButton = makeElement(
       "button",
       "編集",
       "memo-edit-button"
@@ -183,7 +554,7 @@ function renderMemos() {
 
     actions.appendChild(editButton);
 
-    const deleteButton = createTextElement(
+    const deleteButton = makeElement(
       "button",
       "削除",
       "memo-delete-button"
@@ -195,6 +566,7 @@ function renderMemos() {
     });
 
     actions.appendChild(deleteButton);
+
     card.appendChild(actions);
     memoList.appendChild(card);
   });
@@ -202,27 +574,68 @@ function renderMemos() {
   updateCounts();
 }
 
-// 件数を更新する
+// ----------------------------------------
+// Notion転記状況の切り替え
+// ----------------------------------------
+
+function toggleNotionStatus(id) {
+  const index = memos.findIndex((memo) => memo.id === id);
+
+  if (index === -1) return;
+
+  const previousMemos = memos;
+  const memo = memos[index];
+
+  memos = memos.map((item) => {
+    if (item.id !== id) return item;
+
+    const nextStatus = item.notionCopied !== true;
+
+    return {
+      ...item,
+      notionCopied: nextStatus,
+      notionCopiedAt: nextStatus
+        ? new Date().toISOString()
+        : null
+    };
+  });
+
+  if (!saveMemos()) {
+    memos = previousMemos;
+    return;
+  }
+
+  renderMemos();
+}
+
+// ----------------------------------------
+// 件数表示
+// ----------------------------------------
+
 function updateCounts() {
   if (memoCount) {
     memoCount.textContent = String(memos.length);
   }
 
   if (pendingCount) {
-    // AI整理機能は準備中のため、全メモを未整理として数える
     pendingCount.textContent = String(
       memos.filter((memo) => memo.status !== "organized").length
     );
   }
 }
 
-// 入力フォームを新規作成モードにする
+// ----------------------------------------
+// 入力フォーム
+// ----------------------------------------
+
 function resetEditor() {
   editingMemoId = null;
 
   if (memoForm) {
     memoForm.reset();
   }
+
+  fillSourceFields(null);
 
   if (editorTitle) {
     editorTitle.textContent = "新しいメモ";
@@ -231,15 +644,12 @@ function resetEditor() {
   if (editorSection) {
     editorSection.hidden = true;
   }
+
+  updateSourceFields();
 }
 
-// 新規メモ作成画面を開く
 function openNewMemoEditor() {
   resetEditor();
-
-  if (editorTitle) {
-    editorTitle.textContent = "新しいメモ";
-  }
 
   if (editorSection) {
     editorSection.hidden = false;
@@ -249,12 +659,13 @@ function openNewMemoEditor() {
     });
   }
 
+  updateSourceFields();
+
   if (memoTitle) {
     memoTitle.focus();
   }
 }
 
-// メモを編集する
 function startEditing(id) {
   const memo = memos.find((item) => item.id === id);
 
@@ -262,8 +673,10 @@ function startEditing(id) {
 
   editingMemoId = id;
 
+  populateCategorySelects();
+
   if (memoCategory) {
-    memoCategory.value = memo.category;
+    memoCategory.value = memo.category || "その他";
   }
 
   if (memoTitle) {
@@ -273,6 +686,8 @@ function startEditing(id) {
   if (memoOriginal) {
     memoOriginal.value = memo.original;
   }
+
+  fillSourceFields(memo.source || null);
 
   if (editorTitle) {
     editorTitle.textContent = "メモを編集";
@@ -285,9 +700,10 @@ function startEditing(id) {
       block: "start"
     });
   }
+
+  updateSourceFields();
 }
 
-// メモを削除する
 function deleteMemo(id) {
   const memo = memos.find((item) => item.id === id);
 
@@ -312,14 +728,17 @@ function deleteMemo(id) {
   renderMemos();
 }
 
-// メモを追加・更新する
+// ----------------------------------------
+// メモの追加・更新
+// ----------------------------------------
+
 if (memoForm) {
   memoForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
     const category = memoCategory
       ? memoCategory.value
-      : "";
+      : "その他";
 
     const title = memoTitle
       ? memoTitle.value.trim()
@@ -341,20 +760,23 @@ if (memoForm) {
       return;
     }
 
+    const source = category === "読書記録"
+      ? getSourceFromForm()
+      : null;
+
     const now = new Date().toISOString();
     const previousMemos = memos;
 
     if (editingMemoId) {
       memos = memos.map((memo) => {
-        if (memo.id !== editingMemoId) {
-          return memo;
-        }
+        if (memo.id !== editingMemoId) return memo;
 
         return {
           ...memo,
           category,
           title,
           original,
+          source,
           updatedAt: now
         };
       });
@@ -364,9 +786,12 @@ if (memoForm) {
         category,
         title,
         original,
+        source,
         createdAt: now,
         updatedAt: now,
-        status: "pending"
+        status: "pending",
+        notionCopied: false,
+        notionCopiedAt: null
       });
     }
 
@@ -380,34 +805,47 @@ if (memoForm) {
   });
 }
 
-// 新規メモボタン
+// ----------------------------------------
+// イベント設定
+// ----------------------------------------
+
+if (genreForm) {
+  genreForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    if (newGenreName) {
+      addGenre(newGenreName.value);
+    }
+  });
+}
+
+if (memoCategory) {
+  memoCategory.addEventListener("change", updateSourceFields);
+}
+
 if (newMemoButton) {
   newMemoButton.addEventListener("click", openNewMemoEditor);
 }
 
-// キャンセルボタン
 if (cancelEditButton) {
   cancelEditButton.addEventListener("click", resetEditor);
 }
 
-// 検索
 if (memoSearch) {
   memoSearch.addEventListener("input", renderMemos);
 }
 
-// ジャンル絞り込み
 if (categoryFilter) {
   categoryFilter.addEventListener("change", renderMemos);
 }
 
-// 画面下部のナビゲーション
-const navAdd = document.getElementById("nav-add");
+const navAdd = $("nav-add");
 
 if (navAdd) {
   navAdd.addEventListener("click", openNewMemoEditor);
 }
 
-const navHome = document.getElementById("nav-home");
+const navHome = $("nav-home");
 
 if (navHome) {
   navHome.addEventListener("click", () => {
@@ -422,7 +860,7 @@ if (navHome) {
   });
 }
 
-const navNotes = document.getElementById("nav-notes");
+const navNotes = $("nav-notes");
 
 if (navNotes) {
   navNotes.addEventListener("click", () => {
@@ -437,5 +875,11 @@ if (navNotes) {
   });
 }
 
+// ----------------------------------------
 // 初期表示
+// ----------------------------------------
+
+populateCategorySelects();
+renderGenres();
+updateSourceFields();
 renderMemos();
