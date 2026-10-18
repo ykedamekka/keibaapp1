@@ -748,11 +748,7 @@ if (memoForm) {
       ? memoOriginal.value
       : "";
 
-    if (!title) {
-      alert("メモのタイトルを入力してください。");
-      if (memoTitle) memoTitle.focus();
-      return;
-    }
+const finalTitle = title || "無題のメモ";
 
     if (!original.trim()) {
       alert("メモの内容を入力してください。");
