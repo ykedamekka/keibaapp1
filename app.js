@@ -1,3 +1,4 @@
+
 "use strict";
 
 // ========================================
@@ -270,11 +271,7 @@ function renderGenres() {
 
   if (genres.length === 0) {
     genreList.appendChild(
-      makeElement(
-        "p",
-        "ジャンルがありません。追加してください。",
-        "empty-message"
-      )
+      makeElement("p", "ジャンルがありません。追加してください。", "empty-message")
     );
   }
 }
@@ -551,14 +548,13 @@ function renderMemos() {
     );
 
     editButton.type = "button";
-
     editButton.addEventListener("click", () => {
       startEditing(memo.id);
     });
 
     actions.appendChild(editButton);
 
-    // Notion転記用にコピーするボタン
+
     const copyButton = makeElement(
       "button",
       "Notion転記用にコピー",
@@ -573,22 +569,7 @@ function renderMemos() {
 
     actions.appendChild(copyButton);
 
-    // ChatGPTでAI整理するための文章をコピーするボタン
-    const aiOrganizeButton = makeElement(
-      "button",
-      "ChatGPTでAI整理",
-      "memo-copy-button"
-    );
 
-    aiOrganizeButton.type = "button";
-
-    aiOrganizeButton.addEventListener("click", () => {
-      copyMemoForChatGPT(memo.id);
-    });
-
-    actions.appendChild(aiOrganizeButton);
-
-    // 削除ボタン
     const deleteButton = makeElement(
       "button",
       "削除",
@@ -596,7 +577,6 @@ function renderMemos() {
     );
 
     deleteButton.type = "button";
-
     deleteButton.addEventListener("click", () => {
       deleteMemo(memo.id);
     });
@@ -610,129 +590,18 @@ function renderMemos() {
   updateCounts();
 }
 
-// ----------------------------------------
-// Notion転記用の文章を作成
-// ----------------------------------------
+
+/**
+ * Notionに貼り付ける文章を作成
+ */
 
 function buildNotionText(memo) {
   return memo.original || "";
 }
 
-// ----------------------------------------
-// ChatGPTでAI整理するための指示文とメモを作成
-// ----------------------------------------
-
-function buildChatGPTOrganizationPrompt(memo) {
-  const source = memo.source || {};
-
-  const memoDate =
-    formatDate(memo.updatedAt || memo.createdAt) || "日付不明";
-
-  const sourceLines = [
-    source.bookTitle
-      ? `本のタイトル：${source.bookTitle}`
-      : "",
-    source.author
-      ? `著者名：${source.author}`
-      : "",
-    source.page
-      ? `ページ番号：${source.page}`
-      : ""
-  ].filter(Boolean);
-
-  return `あなたは競馬の記録を整理するアシスタントです。
-以下のメモを、元の意味を変えずに整理してください。
-
-【整理ルール】
-1. メモの内容を短く要約する
-2. 確認できた事実を整理する
-3. 自分の気づき・考察を整理する
-4. 予想や仮説を整理する
-5. 今後、確認したいことを列挙する
-6. メモに書かれていない事実は追加しない
-7. 根拠が不足している場合は、推測と明記する
-8. 競馬の専門用語や馬名などは、意味を変えずに扱う
-9. 内容がない項目は、無理に埋めず「記載なし」とする
-
-【出力形式】
-■ 要約
-■ 事実
-■ 気づき・考察
-■ 仮説
-■ 今後の確認事項
-■ 関連するジャンル
-
-【メモ情報】
-タイトル：${memo.title || "無題のメモ"}
-ジャンル：${memo.category || "未分類"}
-記録日：${memoDate}
-${sourceLines.length ? `読書ソース：\n${sourceLines.join("\n")}` : ""}
-
-【競馬メモ本文】
-${memo.original || ""}`;
-}
-
-// ----------------------------------------
-// ChatGPT用の指示文とメモをコピー
-// ----------------------------------------
-
-async function copyMemoForChatGPT(id) {
-  const memo = memos.find((item) => item.id === id);
-
-  if (!memo) {
-    alert("整理するメモが見つかりません。");
-    return;
-  }
-
-  const text = buildChatGPTOrganizationPrompt(memo);
-
-  try {
-    await navigator.clipboard.writeText(text);
-
-    alert(
-      "ChatGPTでAI整理するための文章をコピーしました！\n" +
-      "ChatGPTを開き、新しいチャットに貼り付けてください。"
-    );
-  } catch (error) {
-    console.error("ChatGPT用の文章のコピーに失敗しました。", error);
-
-    // Clipboard APIが使えない環境向けの代替処理
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-
-    document.body.appendChild(textarea);
-    textarea.select();
-
-    let copied = false;
-
-    try {
-      copied = document.execCommand("copy");
-    } catch (fallbackError) {
-      console.error("代替コピーにも失敗しました。", fallbackError);
-    }
-
-    textarea.remove();
-
-    if (copied) {
-      alert(
-        "ChatGPTでAI整理するための文章をコピーしました！\n" +
-        "ChatGPTを開き、新しいチャットに貼り付けてください。"
-      );
-    } else {
-      alert(
-        "自動コピーできませんでした。" +
-        "HTTPSの公開サイトから再度お試しください。"
-      );
-    }
-  }
-}
-
-// ----------------------------------------
-// Notion転記用の文章をコピー
-// ----------------------------------------
-
+/**
+ * Notion転記用の文章をコピー
+ */
 async function copyMemoToNotion(id) {
   const memo = memos.find((item) => item.id === id);
 
@@ -745,11 +614,7 @@ async function copyMemoToNotion(id) {
 
   try {
     await navigator.clipboard.writeText(text);
-
-    alert(
-      "Notion転記用の文章をコピーしました！\n" +
-      "Notionで貼り付けてください。"
-    );
+    alert("Notion転記用の文章をコピーしました！\nNotionで貼り付けてください。");
   } catch (error) {
     console.error("コピーに失敗しました。", error);
 
@@ -773,18 +638,13 @@ async function copyMemoToNotion(id) {
     textarea.remove();
 
     if (copied) {
-      alert(
-        "Notion転記用の文章をコピーしました！\n" +
-        "Notionで貼り付けてください。"
-      );
+      alert("Notion転記用の文章をコピーしました！\nNotionで貼り付けてください。");
     } else {
-      alert(
-        "自動コピーできませんでした。" +
-        "HTTPSの公開サイトから再度お試しください。"
-      );
+      alert("自動コピーできませんでした。HTTPSの公開サイトから再度お試しください。");
     }
   }
 }
+
 
 // ----------------------------------------
 // Notion転記状況の切り替え
@@ -796,6 +656,7 @@ function toggleNotionStatus(id) {
   if (index === -1) return;
 
   const previousMemos = memos;
+  const memo = memos[index];
 
   memos = memos.map((item) => {
     if (item.id !== id) return item;
@@ -864,7 +725,6 @@ function openNewMemoEditor() {
 
   if (editorSection) {
     editorSection.hidden = false;
-
     editorSection.scrollIntoView({
       behavior: "smooth",
       block: "start"
@@ -907,7 +767,6 @@ function startEditing(id) {
 
   if (editorSection) {
     editorSection.hidden = false;
-
     editorSection.scrollIntoView({
       behavior: "smooth",
       block: "start"
@@ -961,15 +820,11 @@ if (memoForm) {
       ? memoOriginal.value
       : "";
 
-    const finalTitle = title || "無題のメモ";
+const finalTitle = title || "無題のメモ";
 
     if (!original.trim()) {
       alert("メモの内容を入力してください。");
-
-      if (memoOriginal) {
-        memoOriginal.focus();
-      }
-
+      if (memoOriginal) memoOriginal.focus();
       return;
     }
 
@@ -987,7 +842,7 @@ if (memoForm) {
         return {
           ...memo,
           category,
-          title: finalTitle,
+          title,
           original,
           source,
           updatedAt: now
@@ -997,7 +852,7 @@ if (memoForm) {
       memos.unshift({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         category,
-        title: finalTitle,
+        title,
         original,
         source,
         createdAt: now,
