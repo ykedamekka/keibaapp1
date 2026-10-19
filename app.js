@@ -1,4 +1,3 @@
-
 "use strict";
 
 // ========================================
@@ -104,7 +103,7 @@ let memos = loadMemos();
 let genres = loadGenres();
 
 // ----------------------------------------
-// データの保存
+// 保存
 // ----------------------------------------
 
 function saveMemos() {
@@ -166,7 +165,7 @@ function formatDate(value) {
 }
 
 // ----------------------------------------
-// ジャンル選択欄の更新
+// ジャンル選択欄を更新
 // ----------------------------------------
 
 function getHistoricalGenres() {
@@ -184,7 +183,7 @@ function getHistoricalGenres() {
 function populateCategorySelects() {
   const historicalGenres = getHistoricalGenres();
 
-  // 削除済みジャンルも過去のメモ用に残す
+  // 削除済みのジャンルも、過去のメモの表示・編集用に残す
   const allGenres = [...new Set([
     ...genres,
     ...historicalGenres
@@ -257,6 +256,8 @@ function renderGenres() {
     );
 
     deleteButton.type = "button";
+
+    // 「その他」は標準ジャンルとして残す
     deleteButton.disabled = genre === "その他";
 
     deleteButton.addEventListener("click", () => {
@@ -385,64 +386,7 @@ function fillSourceFields(source) {
 }
 
 // ----------------------------------------
-// Notion転記用のコピー
-// コピーするのはメモ本文のみ
-// ----------------------------------------
-
-async function copyMemoToNotion(id) {
-  const memo = memos.find((item) => item.id === id);
-
-  if (!memo) {
-    alert("コピーするメモが見つかりません。");
-    return;
-  }
-
-  // タイトル・ジャンル・日時・読書ソースは含めない
-  const text = memo.original || "";
-
-  try {
-    await navigator.clipboard.writeText(text);
-
-    alert(
-      "メモ本文をコピーしました！\nNotionで貼り付けてください。"
-    );
-  } catch (error) {
-    console.error("通常のコピーに失敗しました。", error);
-
-    // クリップボードAPIが使えない場合の代替処理
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    textarea.setAttribute("readonly", "");
-
-    document.body.appendChild(textarea);
-    textarea.select();
-
-    let copied = false;
-
-    try {
-      copied = document.execCommand("copy");
-    } catch (fallbackError) {
-      console.error("代替コピーにも失敗しました。", fallbackError);
-    }
-
-    textarea.remove();
-
-    if (copied) {
-      alert(
-        "メモ本文をコピーしました！\nNotionで貼り付けてください。"
-      );
-    } else {
-      alert(
-        "自動コピーできませんでした。\nHTTPSの公開サイトから再度お試しください。"
-      );
-    }
-  }
-}
-
-// ----------------------------------------
-// メモ一覧の表示
+// メモ一覧
 // ----------------------------------------
 
 function renderMemos() {
@@ -519,13 +463,17 @@ function renderMemos() {
     card.appendChild(header);
 
     card.appendChild(
-      makeElement("h3", memo.title || "無題のメモ", "memo-card-title")
+      makeElement("h3", memo.title, "memo-card-title")
     );
 
     // 読書ソースを表示
     const source = memo.source || {};
 
-    if (source.bookTitle || source.author || source.page) {
+    if (
+      source.bookTitle ||
+      source.author ||
+      source.page
+    ) {
       const sourceBox = document.createElement("div");
       sourceBox.className = "memo-card-source";
 
@@ -592,7 +540,7 @@ function renderMemos() {
     notionRow.appendChild(notionButton);
     card.appendChild(notionRow);
 
-    // 編集・コピー・削除ボタン
+    // 編集・削除ボタン
     const actions = document.createElement("div");
     actions.className = "memo-card-actions";
 
@@ -610,7 +558,7 @@ function renderMemos() {
 
     actions.appendChild(editButton);
 
-    // Notion転記用にコピー：メモ本文のみ
+    // Notion転記用にコピーするボタン
     const copyButton = makeElement(
       "button",
       "Notion転記用にコピー",
@@ -625,6 +573,22 @@ function renderMemos() {
 
     actions.appendChild(copyButton);
 
+    // ChatGPTでAI整理するための文章をコピーするボタン
+    const aiOrganizeButton = makeElement(
+      "button",
+      "ChatGPTでAI整理",
+      "memo-copy-button"
+    );
+
+    aiOrganizeButton.type = "button";
+
+    aiOrganizeButton.addEventListener("click", () => {
+      copyMemoForChatGPT(memo.id);
+    });
+
+    actions.appendChild(aiOrganizeButton);
+
+    // 削除ボタン
     const deleteButton = makeElement(
       "button",
       "削除",
@@ -644,6 +608,182 @@ function renderMemos() {
   });
 
   updateCounts();
+}
+
+// ----------------------------------------
+// Notion転記用の文章を作成
+// ----------------------------------------
+
+function buildNotionText(memo) {
+  return memo.original || "";
+}
+
+// ----------------------------------------
+// ChatGPTでAI整理するための指示文とメモを作成
+// ----------------------------------------
+
+function buildChatGPTOrganizationPrompt(memo) {
+  const source = memo.source || {};
+
+  const memoDate =
+    formatDate(memo.updatedAt || memo.createdAt) || "日付不明";
+
+  const sourceLines = [
+    source.bookTitle
+      ? `本のタイトル：${source.bookTitle}`
+      : "",
+    source.author
+      ? `著者名：${source.author}`
+      : "",
+    source.page
+      ? `ページ番号：${source.page}`
+      : ""
+  ].filter(Boolean);
+
+  return `あなたは競馬の記録を整理するアシスタントです。
+以下のメモを、元の意味を変えずに整理してください。
+
+【整理ルール】
+1. メモの内容を短く要約する
+2. 確認できた事実を整理する
+3. 自分の気づき・考察を整理する
+4. 予想や仮説を整理する
+5. 今後、確認したいことを列挙する
+6. メモに書かれていない事実は追加しない
+7. 根拠が不足している場合は、推測と明記する
+8. 競馬の専門用語や馬名などは、意味を変えずに扱う
+9. 内容がない項目は、無理に埋めず「記載なし」とする
+
+【出力形式】
+■ 要約
+■ 事実
+■ 気づき・考察
+■ 仮説
+■ 今後の確認事項
+■ 関連するジャンル
+
+【メモ情報】
+タイトル：${memo.title || "無題のメモ"}
+ジャンル：${memo.category || "未分類"}
+記録日：${memoDate}
+${sourceLines.length ? `読書ソース：\n${sourceLines.join("\n")}` : ""}
+
+【競馬メモ本文】
+${memo.original || ""}`;
+}
+
+// ----------------------------------------
+// ChatGPT用の指示文とメモをコピー
+// ----------------------------------------
+
+async function copyMemoForChatGPT(id) {
+  const memo = memos.find((item) => item.id === id);
+
+  if (!memo) {
+    alert("整理するメモが見つかりません。");
+    return;
+  }
+
+  const text = buildChatGPTOrganizationPrompt(memo);
+
+  try {
+    await navigator.clipboard.writeText(text);
+
+    alert(
+      "ChatGPTでAI整理するための文章をコピーしました！\n" +
+      "ChatGPTを開き、新しいチャットに貼り付けてください。"
+    );
+  } catch (error) {
+    console.error("ChatGPT用の文章のコピーに失敗しました。", error);
+
+    // Clipboard APIが使えない環境向けの代替処理
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    let copied = false;
+
+    try {
+      copied = document.execCommand("copy");
+    } catch (fallbackError) {
+      console.error("代替コピーにも失敗しました。", fallbackError);
+    }
+
+    textarea.remove();
+
+    if (copied) {
+      alert(
+        "ChatGPTでAI整理するための文章をコピーしました！\n" +
+        "ChatGPTを開き、新しいチャットに貼り付けてください。"
+      );
+    } else {
+      alert(
+        "自動コピーできませんでした。" +
+        "HTTPSの公開サイトから再度お試しください。"
+      );
+    }
+  }
+}
+
+// ----------------------------------------
+// Notion転記用の文章をコピー
+// ----------------------------------------
+
+async function copyMemoToNotion(id) {
+  const memo = memos.find((item) => item.id === id);
+
+  if (!memo) {
+    alert("コピーするメモが見つかりません。");
+    return;
+  }
+
+  const text = buildNotionText(memo);
+
+  try {
+    await navigator.clipboard.writeText(text);
+
+    alert(
+      "Notion転記用の文章をコピーしました！\n" +
+      "Notionで貼り付けてください。"
+    );
+  } catch (error) {
+    console.error("コピーに失敗しました。", error);
+
+    // コピー機能が使えない環境向けの代替処理
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    let copied = false;
+
+    try {
+      copied = document.execCommand("copy");
+    } catch (fallbackError) {
+      console.error("代替コピーにも失敗しました。", fallbackError);
+    }
+
+    textarea.remove();
+
+    if (copied) {
+      alert(
+        "Notion転記用の文章をコピーしました！\n" +
+        "Notionで貼り付けてください。"
+      );
+    } else {
+      alert(
+        "自動コピーできませんでした。" +
+        "HTTPSの公開サイトから再度お試しください。"
+      );
+    }
+  }
 }
 
 // ----------------------------------------
@@ -696,7 +836,7 @@ function updateCounts() {
 }
 
 // ----------------------------------------
-// メモ入力フォーム
+// 入力フォーム
 // ----------------------------------------
 
 function resetEditor() {
@@ -724,6 +864,7 @@ function openNewMemoEditor() {
 
   if (editorSection) {
     editorSection.hidden = false;
+
     editorSection.scrollIntoView({
       behavior: "smooth",
       block: "start"
@@ -751,11 +892,11 @@ function startEditing(id) {
   }
 
   if (memoTitle) {
-    memoTitle.value = memo.title || "";
+    memoTitle.value = memo.title;
   }
 
   if (memoOriginal) {
-    memoOriginal.value = memo.original || "";
+    memoOriginal.value = memo.original;
   }
 
   fillSourceFields(memo.source || null);
@@ -766,6 +907,7 @@ function startEditing(id) {
 
   if (editorSection) {
     editorSection.hidden = false;
+
     editorSection.scrollIntoView({
       behavior: "smooth",
       block: "start"
@@ -780,7 +922,7 @@ function deleteMemo(id) {
 
   if (!memo) return;
 
-  if (!confirm(`「${memo.title || "無題のメモ"}」を削除しますか？`)) {
+  if (!confirm(`「${memo.title}」を削除しますか？`)) {
     return;
   }
 
@@ -815,11 +957,11 @@ if (memoForm) {
       ? memoTitle.value.trim()
       : "";
 
-    const finalTitle = title || "無題のメモ";
-
     const original = memoOriginal
       ? memoOriginal.value
       : "";
+
+    const finalTitle = title || "無題のメモ";
 
     if (!original.trim()) {
       alert("メモの内容を入力してください。");
